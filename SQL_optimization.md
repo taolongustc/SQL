@@ -1,6 +1,31 @@
-## SQL optimization
+# SQL optimization
 
 This guide contains tips on how to optimize Hive query performance.
+## I. Tips for optimizing queries
+Contents:
+0. Monitor query performance: For Hive and Presto queries, open Attis and go to the Queries view.
+1. Limit Query Results
+(1). Use modeled tables whenever possible
+2. Include as many filters as possible
+3. Avoid timeouts on long running queries
+4. Rewrite count(DISTINCT)
+5. Avoid global ordering: Limit ORDER BY Queries
+6. Distribute Data Correctly Using DISTRIBUTE BY
+6. Static vs. Dynamic Partition Loading
+7. Avoid Too Fine-Grained Partitions
+7. Use Hive on Spark when possible
+8. Use max/min(struct()) to find the first/last ranking row by value
+9. Use json_tuple instead of get_json_object
+
+**Tips for Optimizing Joins**
+- Know What Size Tables You’re Joining
+- Use MAPJOIN to Join a Small and Large Table
+- Create a Subset to Join two Large Tables
+- Put the largest table last in the JOIN Statement
+- Avoid nulls in inner joins
+- Magellan (for spatial joins)
+
+
 
 ### 1. Limit Query Results
 Most queries return a large data set that can affect system stability. So restrict the results to a specific number of rows. For example, to return the first ten results, end the query with a `limit 10;`.
@@ -203,13 +228,13 @@ select a.timestamp, b.f1, b.f2
 from log a
 lateral view json_tuple(a.appevent, 'eventid', 'eventname') b as f1, f2;
 ```
-
-### 10. Know What Size Tables You’re Joining
+## II. Tips for Optimizing Joins
+### 1. Know What Size Tables You’re Joining
 The first step to optimizing joins is always to check the size of the tables you’re joining.
 
 People can estimate the scale of their queries if one or more large tables are involved. For more details about tables, please see the **Schemaless tables** and **Kafka tables**.
 
-### 11. Use `MAPJOIN` to Join a Small and Large Table
+### 2. Use `MAPJOIN` to Join a Small and Large Table
 **NOTE: Enable map side join (a.k.a in-memory join) as far as possible.**
 
 Map join is a Hive feature that is used to speed up Hive queries. It lets a table be loaded into memory so that a join can be performed within a mapper without using a Map/Reduce step. If queries frequently depend on small table joins, using map joins speed up queries’ execution.
@@ -238,7 +263,7 @@ set hive.auto.convert.join.noconditionaltask.size=50000000;
 ```
 Notice that the size estimation of the small table is the config value of hive.auto.convert.join.noconditionaltask.size. Enlarging the configuration value could introduce “out of memory” errors if the value is pushed too much.
 
-### 12. Create a Subset to Join two Large Tables
+### 3. Create a Subset to Join two Large Tables
 
 #### TL;DR
 - If possible, avoid joining two big tables! If you have to do it, keep reading.
@@ -378,12 +403,12 @@ FROM
     ON trips_distance.trip_uuid = trips_info.trip_uuid
 ```
 
-### 13. Put the largest table last in the JOIN Statement
+### 4. Put the largest table last in the JOIN Statement
 When joining multiple tables on the same key, put the largest table last. **In every MapReduce stage of the join, the last table in the sequence is streamed through the reducers, whereas the others are buffered.** Therefore, we need a way to decrease the reducer memory needed to buffer the rows for a particular value of the join key. We can do this by organizing the tables such that the largest tables appear last in the sequence.
 
 If the raw query joins a large table with a series of small tables (i.e. star schema, see here for more details), you should consider using MAPJOIN. If the joined tables include two or more large tables, as mentioned above, split the join operation into multiple joins of two tables.
 
-#### 14. Avoid nulls in inner joins
+#### 5. Avoid nulls in inner joins
 Having nulls in inner joins skews the load because all the rows with NULL values end up in the same reducer.
 
 **Good**
