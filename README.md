@@ -1,4 +1,3 @@
-# hello-world0
-Tutorial for github
+# ReadMe
+Add the topics related to SQL
 
-I am Long, working at Uber as a data scientist. I want to be a better person, a good husband and a great father.
